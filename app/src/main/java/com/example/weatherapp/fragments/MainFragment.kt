@@ -16,9 +16,12 @@ import com.android.volley.Response
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.example.weatherapp.adapters.VpAdapter
+import com.example.weatherapp.adapters.WeatherModel
 import com.example.weatherapp.databinding.FragmentMainBinding
 import com.example.weatherapp.isPermissionGranted
 import com.google.android.material.tabs.TabLayoutMediator
+import org.json.JSONObject
+
 const val API_KEY = "4f7f568acea84386a4c70143250302"
 
 class MainFragment : Fragment() {
@@ -68,13 +71,34 @@ class MainFragment : Fragment() {
             Request.Method.GET,
             url,
             {
-                result -> Log.d("MyFragment", "Result: $result")
+                result -> parseWeatherData(result)
             },
             {
                 error -> Log.d("MyFragment", "Error: $error")
             }
         )
         queue.add(request)
+    }
+
+    private fun parseWeatherData(request: String) {
+        val mainObject = JSONObject(request)
+        val item = WeatherModel(
+            city = mainObject.getJSONObject("location").getString("name"),
+            time = mainObject.getJSONObject("current").getString("last_updated"),
+            condition = mainObject.getJSONObject("current").getJSONObject("condition")
+                .getString("text"),
+            currentTemp = mainObject.getJSONObject("current").getString("temp_c"),
+            tempMax = "",
+            tempMin = "",
+            imgUrl = mainObject.getJSONObject("current").getJSONObject("condition")
+                .getString("icon"),
+            hours = ""
+        )
+        Log.d("MyFragment", "City: ${item.city}")
+        Log.d("MyFragment", "Time: ${item.time}")
+        Log.d("MyFragment", "Condition: ${item.condition}")
+        Log.d("MyFragment", "CurrentTemp: ${item.currentTemp}")
+        Log.d("MyFragment", "Img: ${item.imgUrl}")
     }
 
     private fun permissionListener() {
