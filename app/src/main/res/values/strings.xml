@@ -3,4 +3,5 @@
     <string name="main_fragment">Main Fragment</string>
     <string name="hours">HOURS</string>
     <string name="days">DAYS</string>
+    <string name="empty">Empty</string>
 </resources>
