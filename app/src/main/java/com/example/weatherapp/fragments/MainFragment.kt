@@ -140,6 +140,7 @@ class MainFragment : Fragment() {
             )
             list.add(item)
         }
+        viewModel.liveDataList.value = list
         return list
     }
 
