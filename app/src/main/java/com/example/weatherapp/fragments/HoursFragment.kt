@@ -1,13 +1,11 @@
 package com.example.weatherapp.fragments
 
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView.LayoutManager
-import com.example.weatherapp.R
 import com.example.weatherapp.adapters.WeatherAdapter
 import com.example.weatherapp.adapters.WeatherModel
 import com.example.weatherapp.databinding.FragmentHoursBinding
@@ -35,19 +33,19 @@ class HoursFragment : Fragment() {
         rvHours.adapter = adapter
         val list = listOf(
             WeatherModel(
-                city = "",time = "12:00",
-                condition = "Sunny",currentTemp = "25°C",
-                "","","",""
+                city = "", time = "12:00",
+                condition = "Sunny", currentTemp = "25°C",
+                "", "", "", ""
             ),
             WeatherModel(
                 city = "", time = "13:00",
                 condition = "Sunny", currentTemp = "27°C",
-                "","","",""
+                "", "", "", ""
             ),
             WeatherModel(
                 city = "", time = "14:00",
                 condition = "Sunny", currentTemp = "29°C",
-                "", "", "",""
+                "", "", "", ""
             )
         )
         adapter.submitList(list)
