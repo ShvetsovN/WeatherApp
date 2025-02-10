@@ -82,23 +82,49 @@ class MainFragment : Fragment() {
 
     private fun parseWeatherData(request: String) {
         val mainObject = JSONObject(request)
+        val list = parseDays(mainObject)
+        parseCurrentData(mainObject, list[0])
+    }
+
+    private fun parseCurrentData(mainObject: JSONObject, weatherItem: WeatherModel) {
         val item = WeatherModel(
             city = mainObject.getJSONObject("location").getString("name"),
             time = mainObject.getJSONObject("current").getString("last_updated"),
             condition = mainObject.getJSONObject("current").getJSONObject("condition")
                 .getString("text"),
             currentTemp = mainObject.getJSONObject("current").getString("temp_c"),
-            tempMax = "",
-            tempMin = "",
+            tempMax = weatherItem.tempMax,
+            tempMin = weatherItem.tempMin,
             imgUrl = mainObject.getJSONObject("current").getJSONObject("condition")
                 .getString("icon"),
-            hours = ""
+            hours = weatherItem.hours
         )
-        Log.d("MyFragment", "City: ${item.city}")
-        Log.d("MyFragment", "Time: ${item.time}")
-        Log.d("MyFragment", "Condition: ${item.condition}")
-        Log.d("MyFragment", "CurrentTemp: ${item.currentTemp}")
-        Log.d("MyFragment", "Img: ${item.imgUrl}")
+        Log.d("MyFragment", "MaxTemp: ${item.tempMax}")
+        Log.d("MyFragment", "MinTemp: ${item.tempMin}")
+        Log.d("MyFragment", "Img: ${item.hours}")
+    }
+
+    private fun parseDays(mainObject: JSONObject): List<WeatherModel> {
+        val list = ArrayList<WeatherModel>()
+        val daysArray = mainObject.getJSONObject("forecast")
+            .getJSONArray("forecastday")
+        val name = mainObject.getJSONObject("location").getString("name")
+        for(i in 0 until daysArray.length()) {
+            val day = daysArray[i] as JSONObject
+            val item = WeatherModel(
+                name,
+                day.getString("date"),
+                day.getJSONObject("day").getJSONObject("condition").getString("text"),
+                "",
+                day.getJSONObject("day").getString("maxtemp_c"),
+                day.getJSONObject("day").getString("mintemp_c"),
+                day.getJSONObject("day").getJSONObject("condition")
+                    .getString("icon"),
+                day.getJSONArray("hour").toString()
+            )
+            list.add(item)
+        }
+        return list
     }
 
     private fun permissionListener() {
