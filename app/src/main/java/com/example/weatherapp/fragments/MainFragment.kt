@@ -1,7 +1,12 @@
 package com.example.weatherapp.fragments
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -10,17 +15,22 @@ import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.android.volley.Request
-import com.android.volley.Response
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
+import com.example.weatherapp.DialogManager
 import com.example.weatherapp.MainViewModel
 import com.example.weatherapp.adapters.VpAdapter
 import com.example.weatherapp.adapters.WeatherModel
 import com.example.weatherapp.databinding.FragmentMainBinding
 import com.example.weatherapp.isPermissionGranted
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.material.tabs.TabLayoutMediator
 import com.squareup.picasso.Picasso
 import org.json.JSONObject
@@ -28,6 +38,7 @@ import org.json.JSONObject
 const val API_KEY = "4f7f568acea84386a4c70143250302"
 
 class MainFragment : Fragment() {
+    private lateinit var fLocationClient: FusedLocationProviderClient
 
     private val fList = listOf(
         HoursFragment.newInstance(),
@@ -55,25 +66,76 @@ class MainFragment : Fragment() {
         checkPermission()
         init()
         updateCurrentCard()
-        requestWeatherData("Karaganda")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkLocation()
     }
 
     private fun init() = with(binding) {
+        fLocationClient = LocationServices.getFusedLocationProviderClient(requireContext())
         val adapter = VpAdapter(activity as AppCompatActivity, fList)
         vp.adapter = adapter
-        TabLayoutMediator(tabLayout, vp){ tab, pos ->
+        TabLayoutMediator(tabLayout, vp) { tab, pos ->
             tab.text = tList[pos]
         }.attach()
+        ibSync.setOnClickListener {
+            tabLayout.selectTab(tabLayout.getTabAt(0))
+            checkLocation()
+        }
     }
 
-    private fun updateCurrentCard() = with(binding){
-        viewModel.liveDataCurrent.observe(viewLifecycleOwner){
+    private fun checkLocation() {
+        if (isLocationEnabled()) {
+            getLocation()
+        } else {
+            DialogManager.locationSettingDialog(requireContext(), object : DialogManager.Listener {
+                override fun onClick() {
+                    startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                }
+            })
+        }
+    }
+
+    private fun isLocationEnabled(): Boolean {
+        val lm = activity?.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
+    }
+
+    private fun getLocation() {
+        val cancellationToken = CancellationTokenSource()
+        if (ActivityCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        fLocationClient
+            .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cancellationToken.token)
+            .addOnCompleteListener {
+                requestWeatherData("${it.result.latitude},${it.result.longitude}")
+            }
+    }
+
+    private fun updateCurrentCard() = with(binding) {
+        viewModel.liveDataCurrent.observe(viewLifecycleOwner) {
             val maxMinTemp = "${it.tempMax}°C/${it.tempMin}°C"
             tvData.text = it.time
             tvCity.text = it.city
-            tvCurrentTemp.text = it.currentTemp
+            tvCurrentTemp.text = it.currentTemp.ifEmpty {
+                maxMinTemp
+            }
             tvCondition.text = it.condition
-            tvMaxMinTemp.text = maxMinTemp
+            tvMaxMinTemp.text = if (it.currentTemp.isEmpty()) {
+                ""
+            } else {
+                maxMinTemp
+            }
             Picasso.get().load("https:" + it.imgUrl).into(ivCondition)
         }
     }
@@ -88,11 +150,11 @@ class MainFragment : Fragment() {
         val request = StringRequest(
             Request.Method.GET,
             url,
-            {
-                result -> parseWeatherData(result)
+            { result ->
+                parseWeatherData(result)
             },
-            {
-                error -> Log.d("MyFragment", "Error: $error")
+            { error ->
+                Log.d("MyFragment", "Error: $error")
             }
         )
         queue.add(request)
@@ -125,15 +187,15 @@ class MainFragment : Fragment() {
         val daysArray = mainObject.getJSONObject("forecast")
             .getJSONArray("forecastday")
         val name = mainObject.getJSONObject("location").getString("name")
-        for(i in 0 until daysArray.length()) {
+        for (i in 0 until daysArray.length()) {
             val day = daysArray[i] as JSONObject
             val item = WeatherModel(
                 name,
                 day.getString("date"),
                 day.getJSONObject("day").getJSONObject("condition").getString("text"),
                 "",
-                day.getJSONObject("day").getString("maxtemp_c"),
-                day.getJSONObject("day").getString("mintemp_c"),
+                day.getJSONObject("day").getString("maxtemp_c").toFloat().toInt().toString(),
+                day.getJSONObject("day").getString("mintemp_c").toFloat().toInt().toString(),
                 day.getJSONObject("day").getJSONObject("condition")
                     .getString("icon"),
                 day.getJSONArray("hour").toString()
@@ -153,7 +215,7 @@ class MainFragment : Fragment() {
     }
 
     private fun checkPermission() {
-        if(!isPermissionGranted(Manifest.permission.ACCESS_FINE_LOCATION)) {
+        if (!isPermissionGranted(Manifest.permission.ACCESS_FINE_LOCATION)) {
             permissionListener()
             pLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
